@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"presentation": {
+		"echo": false,
+		"panel": "dedicated",
+		"showReuseMessage": false,
+		"clear": true,
+		"close": true,
+		"preserveTerminalName": true,
+		"focus": true
+	},
+	"tasks": [
+		{
+			"label": "Build",
+			"type": "shell",
+			"command": "./.sh",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}
