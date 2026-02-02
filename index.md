@@ -1,3 +1,6 @@
+Thoughts?
+
+```ts
 import fs from "fs";
 const htmlTags = {
 	bold: "b",
@@ -238,12 +241,8 @@ class Compiler {
 		return new TokenArray(tokens);
 	}
 }
-const tests = ["*1 /2 _3 *4 /5/ 6* 7_ 8/ 9*", "**a*Test**c*"];
-for (let i = 0; i < tests.length; i++) {
-	const dir = `tests/${i}`;
-	fs.mkdirSync(dir, { recursive: true });
-	new Compiler(tests[i])
-		.tokenise(true, `${dir}/tokens.json`)
-		.parse(true, `${dir}/nodes.json`)
-		.render(true, `${dir}/render.html`);
-}
+new Compiler(["*1 /2 _3 *4 /5/ 6* 7_ 8/ 9*"][0])
+	.tokenise(true, "dist/tokens.json")
+	.parse(true, "dist/nodes.json")
+	.render(true, "dist/render.html");
+```

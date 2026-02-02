@@ -9,5 +9,6 @@ reset :
 	$(MAKE) all
 dist :
 	mkdir $@
-$(JS) : $(TS) | dist
+$(JS) : $(TS) tsconfig.json | dist
+	rm -rf tests
 	tsc
