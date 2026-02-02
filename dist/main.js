@@ -59,10 +59,6 @@ class Node {
                 case "bold":
                 case "italic":
                 case "underline":
-                    if (node?.text === null)
-                        delete node.text;
-                    if (node?.children?.length === 0)
-                        delete node.children;
                     return {
                         [node.type]: node.children.length > 1
                             ? node.children
@@ -122,8 +118,11 @@ class TokenArray {
                 current.push(node);
                 stack.push(node);
             }
-            else if (token.type.endsWith("close"))
+            else if (token.type.endsWith("close")) {
+                if (stack.length === 1)
+                    throw new Error(`Unexpected Closing tag: <${token.type}>`);
                 stack.pop();
+            }
         }
         if (log) {
             const out = tree.toString();
@@ -140,6 +139,9 @@ class Compiler {
     constructor(input) {
         this.input = input;
     }
+    /**
+     * @todo Use escape tokens instead of `this.input.replace()`
+     */
     tokenise(log = false, file) {
         let output = this.input.replace(RegExp(`\\\\(${Object.keys(escapes)
             .map((i) => {
@@ -155,7 +157,10 @@ class Compiler {
                 bold: "*",
                 italic: "/",
                 underline: "_",
-            }).map(([k, v]) => [k, genInline(v, k)])),
+            }).map(([k, v]) => [
+                k,
+                genInline(v, k),
+            ])),
         };
         re["all"] = regexJoin(...Object.entries(re)
             .map(([_, v]) => {
@@ -208,12 +213,16 @@ class Compiler {
         return new TokenArray(tokens);
     }
 }
-const tests = ["*1 /2 _3 *4 /5/ 6* 7_ 8/ 9*", "**a*Test**c*"];
+const tests = [
+    "*1 /2 _3 *4 /5/ 6* 7_ 8/ 9*",
+    "**a*Test**c*",
+    "*bold /italic* text/",
+];
 for (let i = 0; i < tests.length; i++) {
-    const dir = `tests/${i}`;
+    const dir = `tests/${i + 1}`;
     fs.mkdirSync(dir, { recursive: true });
     new Compiler(tests[i])
-        .tokenise(true, `${dir}/tokens.json`)
-        .parse(true, `${dir}/nodes.json`)
-        .render(true, `${dir}/render.html`);
+        .tokenise(true, `${dir}/1-tokens.json`)
+        .parse(true, `${dir}/2-nodes.json`)
+        .render(true, `${dir}/3-render.html`);
 }

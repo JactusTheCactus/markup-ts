@@ -13,20 +13,20 @@ function regexJoin(...regexes: RegExp[]): RegExp {
 			.join(""),
 	);
 }
-type Symbol = "*" | "/" | "_";
-const escapes: Record<Symbol, string> = Object.entries({
+type InlineSymbol = "*" | "/" | "_";
+const escapes: Record<InlineSymbol, string> = Object.entries({
 	"*": "star",
 	"/": "slash",
 	_: "underscore",
 }).reduce<Record<string, string>>(
-	(acc: Record<Symbol, string>, [k, v]: [Symbol, string]) => {
+	(acc: Record<InlineSymbol, string>, [k, v]: [InlineSymbol, string]) => {
 		acc[k] = "\0" + v.toUpperCase() + "\0";
 		return acc;
 	},
 	{},
 );
 type Inline = "bold" | "italic" | "underline";
-function genInline(symbol: Symbol, label: Inline): RegExp {
+function genInline(symbol: InlineSymbol, label: Inline): RegExp {
 	let newSymbol: string = symbol;
 	if (["*"].includes(symbol)) newSymbol = `\\${symbol}`;
 	return new RegExp(
@@ -43,13 +43,13 @@ class Token {
 	}
 }
 const unEscapes = Object.fromEntries(
-	Object.entries(escapes).map(([k, v]: [Symbol, string]) => [v, k]),
+	Object.entries(escapes).map(([k, v]: [InlineSymbol, string]) => [v, k]),
 );
 type NodeType = "root" | "text" | Inline;
 class Node {
 	type: NodeType;
-	text?: string;
-	children?: Node[];
+	text?: string | null;
+	children: Node[];
 	constructor(options: {
 		type?: NodeType;
 		text?: string;
@@ -83,8 +83,6 @@ class Node {
 					case "bold":
 					case "italic":
 					case "underline":
-						if (node?.text === null) delete node.text;
-						if (node?.children?.length === 0) delete node.children;
 						return {
 							[node.type]:
 								node.children.length > 1
@@ -149,7 +147,11 @@ class TokenArray {
 				});
 				current.push(node);
 				stack.push(node);
-			} else if (token.type.endsWith("close")) stack.pop();
+			} else if (token.type.endsWith("close")) {
+				if (stack.length === 1)
+					throw new Error(`Unexpected Closing tag: <${token.type}>`);
+				stack.pop();
+			}
 		}
 		if (log) {
 			const out = tree.toString();
@@ -164,6 +166,9 @@ class Compiler {
 	constructor(input: string) {
 		this.input = input;
 	}
+	/**
+	 * @todo Use escape tokens instead of `this.input.replace()`
+	 */
 	tokenise(log = false, file?: string): TokenArray {
 		let output = this.input.replace(
 			RegExp(
@@ -184,7 +189,10 @@ class Compiler {
 					bold: "*",
 					italic: "/",
 					underline: "_",
-				}).map(([k, v]: [Inline, Symbol]) => [k, genInline(v, k)]),
+				}).map(([k, v]: [Inline, InlineSymbol]) => [
+					k,
+					genInline(v, k),
+				]),
 			),
 		};
 		re["all"] = regexJoin(
@@ -238,12 +246,16 @@ class Compiler {
 		return new TokenArray(tokens);
 	}
 }
-const tests = ["*1 /2 _3 *4 /5/ 6* 7_ 8/ 9*", "**a*Test**c*"];
+const tests = [
+	"*1 /2 _3 *4 /5/ 6* 7_ 8/ 9*",
+	"**a*Test**c*",
+	"*bold /italic* text/",
+];
 for (let i = 0; i < tests.length; i++) {
-	const dir = `tests/${i}`;
+	const dir = `tests/${i + 1}`;
 	fs.mkdirSync(dir, { recursive: true });
 	new Compiler(tests[i])
-		.tokenise(true, `${dir}/tokens.json`)
-		.parse(true, `${dir}/nodes.json`)
-		.render(true, `${dir}/render.html`);
+		.tokenise(true, `${dir}/1-tokens.json`)
+		.parse(true, `${dir}/2-nodes.json`)
+		.render(true, `${dir}/3-render.html`);
 }
