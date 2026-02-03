@@ -21,7 +21,10 @@
 		"isolatedModules": true,
 		"noUncheckedSideEffectImports": true,
 		"moduleDetection": "auto",
-		"skipLibCheck": true,"incremental":true,"tsBuildInfoFile":"node_modules/.cache/tsbuildinfo","composite":false
+		"skipLibCheck": true,
+		"incremental": true,
+		"tsBuildInfoFile": ".tsbuildinfo",
+		"composite": false
 	},
 	"include": ["src/**/*.ts"],
 	"exclude": ["src/**/_*.ts"]

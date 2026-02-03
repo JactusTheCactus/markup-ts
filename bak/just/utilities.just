@@ -2,7 +2,7 @@ set shell := ["bash", "-uoc", "pipefail"]
 set quiet := true
 set working-directory := ".."
 
-[doc('Format all justfiles (`./justfile`, `./just/*.just`)')]
+[doc('Format all justfiles (`./justfile`, `./just/**/*.just`)')]
 fmt:
 	find . "(" \
 		-wholename "./justfile" -o \
@@ -20,9 +20,10 @@ _fmt justfile="justfile":
 	perl -pi -e 's| {4}|\t|g' "$j"; \
 	[[ -f "$j" ]] || cp "bak/${j#./}" "$j"
 
-list:
+[doc("List all recipes (`just --list` with additional settings)")]
+list: fmt
 	just --list \
 		--list-heading '' \
-		--list-prefix '	' \
+		--list-prefix $'\t' \
 		--list-submodules \
 		--alias-style left

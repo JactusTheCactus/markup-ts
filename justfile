@@ -12,12 +12,9 @@ alias fmt := utils::fmt
 all: utils::fmt && build run
 
 [doc('Build the project')]
-build: check clean::pre && clean::post
+build: clean::pre && clean::post
 	mkdir -p dist
-	tsc
-
-check:
-	tsc --noEmit
+	tsc --build
 
 [confirm("Are you sure you want to clear `./dist/` & rebuild? [y/n]")]
 [doc("Clear `./dist/` & build the project")]
