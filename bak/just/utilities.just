@@ -12,12 +12,12 @@ fmt:
 
 _fmt justfile="justfile":
 	j={{ justfile }}; \
-	mkdir -p bak; \
-	cp -u $j bak; \
-	perl -pgi -e 's|\n\s*\n+|\n|g' $j; \
-	just --justfile $j --fmt --unstable; \
-	perl -pi -e 's| {4}|\t|g' $j; \
-	[[ -f $j ]] || cp bak/${j#./} ..
+	mkdir -p bak/just; \
+	cp -u "$j" "bak/$j"; \
+	perl -pgi -e 's|\n\s*\n+|\n|g' "$j"; \
+	just --justfile "$j" --fmt --unstable; \
+	perl -pi -e 's| {4}|\t|g' "$j"; \
+	[[ -f $j ]] || cp "bak/${j#./}" "$j"
 
 list:
 	just --list \
