@@ -15,7 +15,7 @@ const escapes = Object.entries({
     "/": "slash",
     _: "underscore",
 }).reduce((acc, [k, v]) => {
-    acc[k] = "\0" + v.toUpperCase() + "\0";
+    acc[k] = `\0${v.toUpperCase()}\0`;
     return acc;
 }, {});
 function genInline(symbol, label) {

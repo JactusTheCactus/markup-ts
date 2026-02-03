@@ -20,7 +20,7 @@ const escapes: Record<InlineSymbol, string> = Object.entries({
 	_: "underscore",
 }).reduce<Record<string, string>>(
 	(acc: Record<InlineSymbol, string>, [k, v]: [InlineSymbol, string]) => {
-		acc[k] = "\0" + v.toUpperCase() + "\0";
+		acc[k] = `\0${v.toUpperCase()}\0`;
 		return acc;
 	},
 	{},

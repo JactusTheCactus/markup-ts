@@ -13,7 +13,7 @@
 		{
 			"label": "Build",
 			"type": "shell",
-			"command": "./.sh",
+			"command": "just",
 			"group": {
 				"kind": "build",
 				"isDefault": true
