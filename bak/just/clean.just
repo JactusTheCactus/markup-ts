@@ -1,3 +1,4 @@
+set shell := ["bash", "-uoc", "pipefail"]
 set quiet := true
 set working-directory := ".."
 

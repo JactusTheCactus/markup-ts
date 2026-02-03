@@ -1,3 +1,4 @@
+set shell := ["bash", "-uoc", "pipefail"]
 set quiet := true
 set working-directory := ".."
 
@@ -17,7 +18,7 @@ _fmt justfile="justfile":
 	perl -pgi -e 's|\n\s*\n+|\n|g' "$j"; \
 	just --justfile "$j" --fmt --unstable; \
 	perl -pi -e 's| {4}|\t|g' "$j"; \
-	[[ -f $j ]] || cp "bak/${j#./}" "$j"
+	[[ -f "$j" ]] || cp "bak/${j#./}" "$j"
 
 list:
 	just --list \
