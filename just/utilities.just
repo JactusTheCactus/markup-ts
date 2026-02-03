@@ -1,0 +1,27 @@
+set quiet := true
+set working-directory := ".."
+
+[doc('Format all justfiles (`./justfile`, `./just/*.just`)')]
+fmt:
+	find . "(" \
+		-wholename "./justfile" -o \
+		-path "./just/*.just" \
+	")" -exec \
+		just utils::_fmt {} \
+	";" 2> /dev/null
+
+_fmt justfile="justfile":
+	j={{ justfile }}; \
+	mkdir -p bak; \
+	cp -u $j bak; \
+	perl -pgi -e 's|\n\s*\n+|\n|g' $j; \
+	just --justfile $j --fmt --unstable; \
+	perl -pi -e 's| {4}|\t|g' $j; \
+	[[ -f $j ]] || cp bak/${j#./} ..
+
+list:
+	just --list \
+		--list-heading '' \
+		--list-prefix '	' \
+		--list-submodules \
+		--alias-style left
