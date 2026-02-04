@@ -3,7 +3,7 @@
 ```ts
 import fs from "node:fs";
 import path from "node:path";
-import Markup from "./tokeniser/index.js";
+import Markup from "./tokeniser/Markup.js";
 [
 	["*Bold*", "Not \\*Bold\\*"],
 	["*1 /2 _3_ 4/ 5*", "/1 _2 *3* 4_ 5/", "_1 *2 /3/ 4* 5_"],
@@ -22,37 +22,13 @@ import Markup from "./tokeniser/index.js";
 		.render(dir, "3-render.html");
 });
 ```
-## `parser/index.ts`
-```ts
-import Node from "../renderer/index.js";
-import { type Inline } from "../utils/index.js";
-import { parse } from "./parse.js";
-export type Token =
-	| { type: "text"; text: string }
-	| { type: "open" | "close"; inline: Inline };
-export default class Tokens {
-	tokens: Token[];
-	constructor(tokens: Token[]) {
-		this.tokens = tokens;
-	}
-	get length() {
-		return this.tokens.length;
-	}
-	*[Symbol.iterator]() {
-		for (const token of this.tokens) yield token;
-	}
-	parse(...file: string[]): Node {
-		return parse(this, ...file);
-	}
-}
-```
 ## `parser/parse.ts`
 ```ts
 import fs from "node:fs";
 import path from "node:path";
-import Node from "../renderer/index.js";
-import type Tokens from "./index.js";
-export const parse = (THIS: Tokens, ...file: string[]): Node => {
+import Node from "../renderer/Node.js";
+import Tokens from "./Tokens.js";
+export default (THIS: Tokens, ...file: string[]): Node => {
 	const tree: Node = new Node({ type: "root" });
 	const stack = [tree];
 	for (const token of THIS) {
@@ -78,21 +54,48 @@ export const parse = (THIS: Tokens, ...file: string[]): Node => {
 	return tree;
 };
 ```
-## `renderer/index.ts`
+## `parser/Tokens.ts`
 ```ts
-import { escapes, type Inline, type InlineSymbol } from "../utils/index.js";
-import { push } from "./push.js";
-import { toString } from "./toString.js";
-import { render } from "./render.js";
-export type NodeType = "root" | "text" | Inline;
-export const htmlTags = {
+import Node from "../renderer/Node.js";
+import parse from "./parse.js";
+import type { Token } from "./Token.js";
+export default class Tokens {
+	tokens: Token[];
+	constructor(tokens: Token[]) {
+		this.tokens = tokens;
+	}
+	get length() {
+		return this.tokens.length;
+	}
+	*[Symbol.iterator]() {
+		for (const token of this.tokens) yield token;
+	}
+	parse(...file: string[]): Node {
+		return parse(this, ...file);
+	}
+}
+```
+## `parser/Token.ts`
+```ts
+import type { Inline } from "../utils/Inline.js";
+export type Token =
+	| { type: "text"; text: string }
+	| { type: "open" | "close"; inline: Inline };
+```
+## `renderer/htmlTags.ts`
+```ts
+export default {
 	bold: "b",
 	italic: "i",
 	underline: "u",
 };
-export const unEscapes = Object.fromEntries(
-	Object.entries(escapes).map(([k, v]: [InlineSymbol, string]) => [v, k]),
-);
+```
+## `renderer/Node.ts`
+```ts
+import type { NodeType } from "./NodeType.js";
+import push from "./push.js";
+import render from "./render.js";
+import toString from "./toString.js";
 export default class Node {
 	type: NodeType;
 	text?: string | null;
@@ -117,10 +120,15 @@ export default class Node {
 	}
 }
 ```
+## `renderer/NodeType.ts`
+```ts
+import type { Inline } from "../utils/Inline.js";
+export type NodeType = "root" | "text" | Inline;
+```
 ## `renderer/push.ts`
 ```ts
-import type Node from "./index.js";
-export const push = (THIS: Node, ...children: Node[]): void => {
+import Node from "./Node.js";
+export default (THIS: Node, ...children: Node[]): void => {
 	for (const child of children)
 		if (
 			child?.type !== "text" ||
@@ -134,9 +142,11 @@ export const push = (THIS: Node, ...children: Node[]): void => {
 ```ts
 import fs from "node:fs";
 import path from "node:path";
-import { escapes } from "../utils/index.js";
-import Node, { htmlTags, unEscapes } from "./index.js";
-export const render = (THIS: Node, ...file: string[]): string => {
+import escapes from "../utils/escapes.js";
+import Node from "./Node.js";
+import unEscapes from "./unEscapes.js";
+import htmlTags from "./htmlTags.js";
+export default (THIS: Node, ...file: string[]): string => {
 	switch (THIS.type) {
 		case "root": {
 			const out = THIS.children.map((i) => i.render()).join("");
@@ -159,63 +169,53 @@ export const render = (THIS: Node, ...file: string[]): string => {
 ```
 ## `renderer/toString.ts`
 ```ts
-import type Node from "./index.js";
-export const toString = (THIS: Node): string => {
-	return JSON.stringify(
-		THIS,
-		(
-			_: string,
-			node: Node,
-		): string | Node | Node[] | Record<string, Node | Node[]> => {
-			switch (node?.type) {
-				case "root":
-					return node.children;
-				case "text":
-					return node.text;
-				case "bold":
-				case "italic":
-				case "underline":
-					return {
-						[node.type]:
-							node.children.length > 1
-								? node.children
-								: node.children[0],
-					};
-			}
-		},
-		"\t",
-	);
+import Node from "./Node.js";
+export default (THIS: Node): string => {
+	function fmt(input: Node) {
+		let { type, text, children } = { ...input };
+		switch (type) {
+			case "root":
+				return children.map(fmt);
+			case "text":
+				return text;
+			case "bold":
+			case "italic":
+			case "underline":
+				return {
+					[type]:
+						children.length > 1
+							? children.map(fmt)
+							: fmt(children[0]),
+				};
+		}
+	}
+	return JSON.stringify(fmt(THIS), null, "\t");
 };
 ```
-## `tokeniser/index.ts`
+## `renderer/unEscapes.ts`
 ```ts
-import { type Inline, type InlineSymbol } from "../utils/index.js";
-import Tokens from "../parser/index.js";
-import { tokenise } from "./tokenise.js";
-export const regexJoin = (regexes: RegExp[]): RegExp =>
-	new RegExp(
-		regexes.map((r) => r.source).join("|"),
-		[...new Set(regexes.flatMap((r) => [...r.flags]))]
-			.filter((i) => !["g", "y"].includes(i))
-			.sort()
-			.join(""),
-	);
-const genInline = (symbol: InlineSymbol, label: Inline): RegExp => {
+import escapes from "../utils/escapes.js";
+import type { InlineSymbol } from "../utils/InlineSymbol.js";
+export default Object.fromEntries(
+	Object.entries(escapes).map(([k, v]: [InlineSymbol, string]) => [v, k]),
+);
+```
+## `tokeniser/genInline.ts`
+```ts
+import type { Inline } from "../utils/Inline.js";
+import type { InlineSymbol } from "../utils/InlineSymbol.js";
+export default (symbol: InlineSymbol, label: Inline): RegExp => {
 	let newSymbol: string = symbol;
 	if (["*"].includes(symbol)) newSymbol = `\\${symbol}`;
 	return new RegExp(
 		newSymbol + `(?!\\s)(?<${label}_text>[^\\n]+)(?<!\\s)` + newSymbol,
 	);
 };
-export const re: { [k: string]: RegExp | { [k: string]: RegExp } } = {
-	inline: Object.fromEntries(
-		Object.entries({
-			bold: "*",
-			italic: "/",
-			underline: "_",
-		}).map(([k, v]: [Inline, InlineSymbol]) => [k, genInline(v, k)]),
-	),
-};
+```
+## `tokeniser/Markup.ts`
+```ts
+import Tokens from "../parser/Tokens.js";
+import tokenise from "./tokenise.js";
 export default class Markup {
 	input: string;
 	constructor(input: string) {
@@ -226,15 +226,45 @@ export default class Markup {
 	}
 }
 ```
+## `tokeniser/regexJoin.ts`
+```ts
+export default (regexes: RegExp[]): RegExp =>
+	new RegExp(
+		regexes.map((r) => r.source).join("|"),
+		[...new Set(regexes.flatMap((r) => [...r.flags]))]
+			.filter((i) => !["g", "y"].includes(i))
+			.sort()
+			.join(""),
+	);
+```
+## `tokeniser/re.ts`
+```ts
+import type { Inline } from "../utils/Inline.js";
+import type { InlineSymbol } from "../utils/InlineSymbol.js";
+import genInline from "./genInline.js";
+export default {
+	inline: Object.fromEntries(
+		Object.entries({
+			bold: "*",
+			italic: "/",
+			underline: "_",
+		}).map(([k, v]: [Inline, InlineSymbol]) => [k, genInline(v, k)]),
+	),
+};
+```
 ## `tokeniser/tokenise.ts`
 ```ts
 import fs from "node:fs";
 import path from "node:path";
-import Tokens, { type Token } from "../parser/index.js";
-import { escapes, type Inline } from "../utils/index.js";
-import Markup, { regexJoin, re } from "./index.js";
+import Tokens from "../parser/Tokens.js";
+import type { Token } from "../parser/Token.js";
+import type { Inline } from "../utils/Inline.js";
+import escapes from "../utils/escapes.js";
+import Markup from "./Markup.js";
+import re from "./re.js";
+import regexJoin from "./regexJoin.js";
 /** @todo Use escaped text tokens instead of `this.input.replace(...)` */
-export const tokenise = (THIS: Markup, ...file: string[]): Tokens => {
+export default (THIS: Markup, ...file: string[]): Tokens => {
 	const re_escape = RegExp(
 		`\\\\(${Object.keys(escapes)
 			.map((i) => (["*"].includes(i) ? `\\${i}` : i))
@@ -296,10 +326,10 @@ export const tokenise = (THIS: Markup, ...file: string[]): Tokens => {
 	return new Tokens(tokens);
 };
 ```
-## `utils/index.ts`
+## `utils/escapes.ts`
 ```ts
-export type InlineSymbol = "*" | "/" | "_";
-export const escapes: Record<InlineSymbol, string> = Object.entries({
+import type { InlineSymbol } from "./InlineSymbol.js";
+export default Object.entries({
 	"*": "star",
 	"/": "slash",
 	_: "underscore",
@@ -310,5 +340,12 @@ export const escapes: Record<InlineSymbol, string> = Object.entries({
 	},
 	{},
 );
+```
+## `utils/InlineSymbol.ts`
+```ts
+export type InlineSymbol = "*" | "/" | "_";
+```
+## `utils/Inline.ts`
+```ts
 export type Inline = "bold" | "italic" | "underline";
 ```

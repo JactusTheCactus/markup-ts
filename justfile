@@ -22,7 +22,7 @@ build: clean::pre && clean::post
 [confirm("Are you sure you want to clear `./dist/` & rebuild? [y/n]")]
 [doc("Clear `./dist/` & build the project")]
 reset: && build
-	rm -rf dist
+	rm -rf dist .tsbuildinfo
 
 [doc('Run the project')]
 run:

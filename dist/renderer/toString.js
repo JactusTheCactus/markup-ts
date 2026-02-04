@@ -1,19 +1,21 @@
 import Node from "./Node.js";
 export default (THIS) => {
-    return JSON.stringify(THIS, (_, node) => {
-        switch (node?.type) {
+    function fmt(input) {
+        let { type, text, children } = { ...input };
+        switch (type) {
             case "root":
-                return node.children;
+                return children.map(fmt);
             case "text":
-                return node.text;
+                return text;
             case "bold":
             case "italic":
             case "underline":
                 return {
-                    [node.type]: node.children.length > 1
-                        ? node.children
-                        : node.children[0],
+                    [type]: children.length > 1
+                        ? children.map(fmt)
+                        : fmt(children[0]),
                 };
         }
-    }, "\t");
+    }
+    return JSON.stringify(fmt(THIS), null, "\t");
 };
