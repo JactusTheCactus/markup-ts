@@ -13,11 +13,8 @@
 		{
 			"label": "Build",
 			"type": "shell",
-			"command": "just",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
+			"command": "make",
+			"group": { "kind": "build", "isDefault": true }
 		}
 	]
 }

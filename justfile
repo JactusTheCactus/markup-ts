@@ -1,5 +1,6 @@
-set shell := ["bash", "-uoc", "pipefail"]
 set quiet := true
+set shell := ["bash", "-uoc", "pipefail"]
+set ignore-comments := true
 
 mod clean "just/clean.just"
 mod utils "just/utilities.just"
@@ -9,7 +10,8 @@ alias fmt := utils::fmt
 
 [default]
 [doc('Build & run the project')]
-all: utils::fmt && build run
+all:
+	make
 
 [doc('Build the project')]
 build: clean::pre && clean::post

@@ -1,10 +1,11 @@
 import fs from "fs";
+import path from "path";
 const htmlTags = {
     bold: "b",
     italic: "i",
     underline: "u",
 };
-function regexJoin(...regexes) {
+function regexJoin(regexes) {
     return new RegExp(regexes.map((r) => r.source).join("|"), [...new Set(regexes.flatMap((r) => [...r.flags]))]
         .filter((i) => !["y"].includes(i))
         .sort()
@@ -134,6 +135,24 @@ class TokenArray {
         return tree;
     }
 }
+const symbols = {
+    bold: "*",
+    italic: "/",
+    underline: "_",
+};
+const re = {
+    inline: Object.fromEntries(Object.entries(symbols).map(([k, v]) => [
+        k,
+        genInline(v, k),
+    ])),
+};
+/*console.log(
+    regexJoin(
+        Object.values(symbols).map(
+            (i) => new RegExp(i.replace(/[*]/g, (m) => `\\${m}`)),
+        ),
+    ),
+);*/
 class Compiler {
     input;
     constructor(input) {
@@ -152,17 +171,7 @@ class Compiler {
         })
             .join("|")})`, "g"), (_, m) => escapes[m]);
         const tokens = [];
-        const re = {
-            inline: Object.fromEntries(Object.entries({
-                bold: "*",
-                italic: "/",
-                underline: "_",
-            }).map(([k, v]) => [
-                k,
-                genInline(v, k),
-            ])),
-        };
-        re["all"] = regexJoin(...Object.entries(re)
+        re["all"] = regexJoin(Object.entries(re)
             .map(([_, v]) => {
             if (v instanceof RegExp)
                 return v;
@@ -219,10 +228,10 @@ const tests = [
     "*bold /italic* text/",
 ];
 for (let i = 0; i < tests.length; i++) {
-    const dir = `tests/${i + 1}`;
+    const dir = path.join("tests", String(i + 1));
     fs.mkdirSync(dir, { recursive: true });
     new Compiler(tests[i])
-        .tokenise(true, `${dir}/1-tokens.json`)
-        .parse(true, `${dir}/2-nodes.json`)
-        .render(true, `${dir}/3-render.html`);
+        .tokenise(true, path.join(dir, "1-tokens.json"))
+        .parse(true, path.join(dir, "2-nodes.json"))
+        .render(true, path.join(dir, "3-render.html"));
 }
