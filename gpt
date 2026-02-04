@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 exec > gpt.md
 printf '# %s?\n' \
 	"Thoughts"
