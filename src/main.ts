@@ -175,13 +175,14 @@ const re: { [k: string]: RegExp | { [k: string]: RegExp } } = {
 		]),
 	),
 };
-/*console.log(
-	regexJoin(
-		Object.values(symbols).map(
-			(i) => new RegExp(i.replace(/[*]/g, (m) => `\\${m}`)),
+const token_arr = Object.values(symbols).map(
+	(i) =>
+		new RegExp(
+			i
+				.replace(/[*]/g, (m) => `\\${m}`)
+				.replace(/^(.*?)$/, (_, m) => `(?<symbol_text>\\\\${m})`),
 		),
-	),
-);*/
+);
 class Compiler {
 	input: string;
 	constructor(input: string) {
@@ -191,7 +192,7 @@ class Compiler {
 	 * @todo Use escape tokens instead of `this.input.replace()`
 	 */
 	tokenise(log = false, file?: string): TokenArray {
-		let output = this.input.replace(
+		let output = this.input; /*.replace(
 			RegExp(
 				`\\\\(${Object.keys(escapes)
 					.map((i) => {
@@ -202,7 +203,7 @@ class Compiler {
 				"g",
 			),
 			(_, m) => escapes[m],
-		);
+		);*/
 		const tokens: Token[] = [];
 		re["all"] = regexJoin(
 			Object.entries(re)
@@ -212,6 +213,34 @@ class Compiler {
 				})
 				.flat(),
 		);
+		if (false) {
+			console.log(regexJoin(token_arr));
+			while (regexJoin(token_arr).test(output)) {
+				let best = null;
+				for (const r of token_arr) {
+					const match = output.match(r);
+					if (!match) continue;
+					else if (!best || match.index < best.match.index)
+						best = { regex: r, match };
+				}
+				const match = best.match;
+				const parts = output.split(match[0]);
+				if (parts[0].length) {
+					tokens.push(new Token({ type: "text", text: parts[0] }));
+				}
+				//console.log("Pre Pushed!");
+				const content = match[1];
+				const contentTokens = new Compiler(content).tokenise();
+				console.log("Content Tokenised!");
+				if (contentTokens.length === 1) {
+					tokens.push(new Token({ type: "text", text: content }));
+				} else {
+					tokens.push(...contentTokens);
+				}
+				console.log("Content Pushed!");
+				output = parts.at(-1);
+			}
+		}
 		while (re["all"].test(output)) {
 			let best = null;
 			for (const r of Object.values(re["inline"])) {
@@ -222,12 +251,12 @@ class Compiler {
 			}
 			const match = best.match;
 			const parts = output.split(match[0]);
-			const pre = parts[0];
 			const type = Object.keys(best.match.groups)[0].replace(
 				/(.*?)_text/,
 				(_, m) => m,
 			) as Inline;
-			if (pre.length) tokens.push(new Token({ type: "text", text: pre }));
+			if (parts[0].length)
+				tokens.push(new Token({ type: "text", text: parts[0] }));
 			const content = match[1];
 			const contentTokens = new Compiler(content).tokenise();
 			tokens.push(new Token({ type: `${type}_open` }));
@@ -255,13 +284,14 @@ class Compiler {
 		return new TokenArray(tokens);
 	}
 }
-const tests = [
+const tests: string[] = [
+	["*Bold*", "\\*Bold\\*"].join("\n"),
 	"*1 /2 _3 *4 /5/ 6* 7_ 8/ 9*",
 	"**a*Test**c*",
 	"*bold /italic* text/",
 ];
 for (let i = 0; i < tests.length; i++) {
-	const dir = path.join("tests", String(i + 1));
+	const dir = path.join("tests", String(i));
 	fs.mkdirSync(dir, { recursive: true });
 	new Compiler(tests[i])
 		.tokenise(true, path.join(dir, "1-tokens.json"))

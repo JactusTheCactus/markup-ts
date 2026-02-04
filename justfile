@@ -16,6 +16,7 @@ all:
 [doc('Build the project')]
 build: clean::pre && clean::post
 	mkdir -p dist
+	tsc --noEmit
 	tsc --build
 
 [confirm("Are you sure you want to clear `./dist/` & rebuild? [y/n]")]
