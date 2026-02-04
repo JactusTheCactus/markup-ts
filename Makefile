@@ -1,4 +1,4 @@
-.PHONY : default fmt run
+.PHONY : default fmt reset run
 .SILENT :
 .ONESHELL :
 SHELL := /usr/bin/bash
@@ -13,3 +13,5 @@ run :
 	source ~/.nvm/nvm.sh
 	nvm use 24 > /dev/null
 	just run
+reset :
+	just reset

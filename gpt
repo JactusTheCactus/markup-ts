@@ -1,0 +1,9 @@
+exec > gpt.md
+printf '# %s?\n' \
+	"Thoughts"
+while read -r file; do
+	# shellcheck disable=SC2016
+	printf '## `%s`\n```ts\n%s\n```\n' \
+		"${file#src/}" \
+		"$(<"$file")"
+done < <(find src -type f -name \*.ts | sort)

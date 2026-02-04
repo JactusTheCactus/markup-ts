@@ -26,4 +26,4 @@ reset: && build
 
 [doc('Run the project')]
 run:
-	node dist/main
+	node dist/index
