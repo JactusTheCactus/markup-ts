@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+code "src/$(find src -type f | perl -pe 's|^src/||g' | sort -r | fzf)"
