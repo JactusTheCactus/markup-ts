@@ -1,11 +1,11 @@
 [
-	"bold_open",
-	"bold_open",
+	"[bold_open]",
+	"[bold_open]",
 	"a",
-	"bold_open",
+	"[bold_open]",
 	"Test",
-	"bold_close",
-	"bold_close",
+	"[bold_close]",
+	"[bold_close]",
 	"c",
-	"bold_close"
+	"[bold_close]"
 ]

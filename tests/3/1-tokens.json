@@ -1,6 +1,6 @@
 [
-	"bold_open",
+	"[bold_open]",
 	"bold /italic",
-	"bold_close",
+	"[bold_close]",
 	" text/"
 ]

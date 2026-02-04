@@ -9,7 +9,7 @@ function regexJoin(regexes: RegExp[]): RegExp {
 	return new RegExp(
 		regexes.map((r) => r.source).join("|"),
 		[...new Set(regexes.flatMap((r) => [...r.flags]))]
-			.filter((i) => !["y"].includes(i))
+			.filter((i) => !["g", "y"].includes(i))
 			.sort()
 			.join(""),
 	);
@@ -34,15 +34,9 @@ function genInline(symbol: InlineSymbol, label: Inline): RegExp {
 		newSymbol + `(?!\\s)(?<${label}_text>[^\\n]+)(?<!\\s)` + newSymbol,
 	);
 }
-type TokenType = "text" | `${Inline}_${"open" | "close"}`;
-class Token {
-	type: TokenType;
-	text?: string;
-	constructor(options: { type: TokenType; text?: string }) {
-		this.type = options.type;
-		this.text = options.text;
-	}
-}
+type Token =
+	| { type: "text"; text: string }
+	| { type: "open" | "close"; inline: Inline };
 const unEscapes = Object.fromEntries(
 	Object.entries(escapes).map(([k, v]: [InlineSymbol, string]) => [v, k]),
 );
@@ -90,21 +84,16 @@ class Node {
 									? node.children
 									: node.children[0],
 						};
-					default:
-						return node;
 				}
 			},
 			"\t",
 		);
 	}
-	render(log = false, file: string = null): string {
+	render(...file: string[]): string {
 		switch (this.type) {
 			case "root": {
 				const out = this.children.map((i) => i.render()).join("");
-				if (log) {
-					if (file) fs.writeFileSync(file, out);
-					else console.log(out);
-				}
+				if (file.length) fs.writeFileSync(path.join(...file), out);
 				return out;
 			}
 			case "bold":
@@ -116,12 +105,12 @@ class Node {
 			case "text":
 				return this.text.replace(
 					RegExp(Object.values(escapes).join("|"), "g"),
-					(x) => unEscapes[x],
+					(m) => unEscapes[m],
 				);
 		}
 	}
 }
-class TokenArray {
+class Tokens {
 	tokens: Token[];
 	constructor(tokens: Token[]) {
 		this.tokens = tokens;
@@ -132,33 +121,29 @@ class TokenArray {
 	*[Symbol.iterator]() {
 		for (const token of this.tokens) yield token;
 	}
-	parse(log = false, file: string = null): Node {
+	parse(...file: string[]): Node {
 		const tree: Node = new Node({ type: "root" });
 		const stack = [tree];
 		for (const token of this) {
 			const current = stack.at(-1);
 			if (token.type === "text")
 				current.push(new Node({ text: token.text }));
-			else if (token.type.endsWith("open")) {
+			else if (token.type === "open") {
 				const node = new Node({
-					type: token.type.replace(
+					type: token.inline.replace(
 						/^(.*?)_open$/,
 						(_, m) => m,
 					) as NodeType,
 				});
 				current.push(node);
 				stack.push(node);
-			} else if (token.type.endsWith("close")) {
+			} else if (token.type === "close") {
 				if (stack.length === 1)
 					throw new Error(`Unexpected Closing tag: <${token.type}>`);
 				stack.pop();
 			}
 		}
-		if (log) {
-			const out = tree.toString();
-			if (file) fs.writeFileSync(file, out);
-			else console.log(out);
-		}
+		if (file.length) fs.writeFileSync(path.join(...file), tree.toString());
 		return tree;
 	}
 }
@@ -175,37 +160,26 @@ const re: { [k: string]: RegExp | { [k: string]: RegExp } } = {
 		]),
 	),
 };
-const token_arr = Object.values(symbols).map(
-	(i) =>
-		new RegExp(
-			i
-				.replace(/[*]/g, (m) => `\\${m}`)
-				.replace(/^(.*?)$/, (_, m) => `(?<symbol_text>\\\\${m})`),
-		),
-);
 class Compiler {
 	input: string;
 	constructor(input: string) {
 		this.input = input;
 	}
-	/**
-	 * @todo Use escape tokens instead of `this.input.replace()`
-	 */
-	tokenise(log = false, file?: string): TokenArray {
-		let output = this.input; /*.replace(
-			RegExp(
-				`\\\\(${Object.keys(escapes)
-					.map((i) => {
-						if (["*"].includes(i)) return `\\${i}`;
-						else return i;
-					})
-					.join("|")})`,
-				"g",
-			),
+	/** @todo Use escaped text tokens instead of `this.input.replace(...)` */
+	tokenise(...file: string[]): Tokens {
+		let re_escape_arr: (string | RegExp)[] = Object.keys(escapes).map(
+			(i) => {
+				if (["*"].includes(i)) return `\\${i}`;
+				else return i;
+			},
+		);
+		const re_escape = RegExp(`\\\\(${re_escape_arr.join("|")})`);
+		let output = this.input.replace(
+			RegExp(re_escape, "g"),
 			(_, m) => escapes[m],
-		);*/
+		);
 		const tokens: Token[] = [];
-		re["all"] = regexJoin(
+		const all = regexJoin(
 			Object.entries(re)
 				.map(([_, v]) => {
 					if (v instanceof RegExp) return v;
@@ -213,35 +187,7 @@ class Compiler {
 				})
 				.flat(),
 		);
-		if (false) {
-			console.log(regexJoin(token_arr));
-			while (regexJoin(token_arr).test(output)) {
-				let best = null;
-				for (const r of token_arr) {
-					const match = output.match(r);
-					if (!match) continue;
-					else if (!best || match.index < best.match.index)
-						best = { regex: r, match };
-				}
-				const match = best.match;
-				const parts = output.split(match[0]);
-				if (parts[0].length) {
-					tokens.push(new Token({ type: "text", text: parts[0] }));
-				}
-				//console.log("Pre Pushed!");
-				const content = match[1];
-				const contentTokens = new Compiler(content).tokenise();
-				console.log("Content Tokenised!");
-				if (contentTokens.length === 1) {
-					tokens.push(new Token({ type: "text", text: content }));
-				} else {
-					tokens.push(...contentTokens);
-				}
-				console.log("Content Pushed!");
-				output = parts.at(-1);
-			}
-		}
-		while (re["all"].test(output)) {
+		while (all.test(output)) {
 			let best = null;
 			for (const r of Object.values(re["inline"])) {
 				const match = output.match(r);
@@ -250,51 +196,57 @@ class Compiler {
 					best = { regex: r, match };
 			}
 			const match = best.match;
-			const parts = output.split(match[0]);
+			const start = match.index!;
+			const end = start + match[0].length;
+			const before = output.slice(0, start);
+			const after = output.slice(end);
 			const type = Object.keys(best.match.groups)[0].replace(
 				/(.*?)_text/,
 				(_, m) => m,
 			) as Inline;
-			if (parts[0].length)
-				tokens.push(new Token({ type: "text", text: parts[0] }));
+			if (before.length) tokens.push({ type: "text", text: before });
 			const content = match[1];
 			const contentTokens = new Compiler(content).tokenise();
-			tokens.push(new Token({ type: `${type}_open` }));
-			if (contentTokens.length === 1)
-				tokens.push(new Token({ type: "text", text: content }));
-			else tokens.push(...contentTokens);
-			tokens.push(new Token({ type: `${type}_close` }));
-			output = parts.at(-1);
+			tokens.push({ inline: type, type: "open" });
+			/*if (contentTokens.length === 1)
+				tokens.push({ type: "text", text: content });
+			else tokens.push(...contentTokens);*/
+			tokens.push(...contentTokens);
+			tokens.push({ inline: type, type: "close" });
+			output = after;
 		}
-		tokens.push(new Token({ type: "text", text: output }));
-		if (log) {
-			const out = JSON.stringify(
-				tokens
-					.map((i) => {
-						if (i.type === "text") return i.text;
-						else return i.type;
-					})
-					.filter(Boolean),
-				null,
-				"\t",
+		tokens.push({ type: "text", text: output });
+		if (file.length)
+			fs.writeFileSync(
+				path.join(...file),
+				JSON.stringify(
+					tokens
+						.map((i) => {
+							if (i.type === "text") return i.text;
+							else return `[${i.inline}_${i.type}]`;
+						})
+						.filter(Boolean),
+					null,
+					"\t",
+				),
 			);
-			if (file) fs.writeFileSync(file, out);
-			else console.log(out);
-		}
-		return new TokenArray(tokens);
+		return new Tokens(tokens);
 	}
 }
 const tests: string[] = [
-	["*Bold*", "\\*Bold\\*"].join("\n"),
-	"*1 /2 _3 *4 /5/ 6* 7_ 8/ 9*",
+	["*Bold*", "Not \\*Bold\\*"],
+	["*1 /2 _3_ 4/ 5*", "/1 _2 *3* 4_ 5/", "_1 *2 /3/ 4* 5_"],
 	"**a*Test**c*",
 	"*bold /italic* text/",
-];
-for (let i = 0; i < tests.length; i++) {
-	const dir = path.join("tests", String(i));
+].map((i: string | string[]) => {
+	if (typeof i === "object") return i.map((n) => n.trim()).join("\n");
+	else return i.trim();
+});
+tests.forEach((test, index) => {
+	const dir = path.join("tests", String(index));
 	fs.mkdirSync(dir, { recursive: true });
-	new Compiler(tests[i])
-		.tokenise(true, path.join(dir, "1-tokens.json"))
-		.parse(true, path.join(dir, "2-nodes.json"))
-		.render(true, path.join(dir, "3-render.html"));
-}
+	new Compiler(test)
+		.tokenise(dir, "1-tokens.json")
+		.parse(dir, "2-nodes.json")
+		.render(dir, "3-render.html");
+});
