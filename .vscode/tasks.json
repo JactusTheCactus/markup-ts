@@ -14,7 +14,10 @@
 			"label": "Build",
 			"type": "shell",
 			"command": "make && ./gpt",
-			"group": { "kind": "build", "isDefault": true }
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
 		}
 	]
 }
