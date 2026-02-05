@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+state=$1
+shift
+# shellcheck disable=SC2068
+find "$@" -print0 | sort -z | xargs -0 cksum > "$state"

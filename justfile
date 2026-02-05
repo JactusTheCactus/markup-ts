@@ -17,12 +17,15 @@ build: clean::pre && clean::post
 	mkdir -p dist
 	tsc --noEmit
 	tsc --build
+	echo "Build Complete!"
 
 [confirm("Are you sure you want to clear `./dist/` & rebuild? [y/n]")]
 [doc("Clear `./dist/` & build the project")]
 reset: && all
 	rm -rf dist .tsbuildinfo
+	echo "`./dist/` Cleared!"
 
 [doc('Run the project')]
 run:
 	node dist/index
+	echo "Run Complete!"

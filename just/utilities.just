@@ -10,12 +10,11 @@ fmt:
 	")" -exec \
 		just utils::_fmt {} \
 	";" 2> /dev/null
+	echo "Format Complete!"
 
 _fmt justfile="justfile":
-	j={{ justfile }}; \
-	perl -pgi -e 's|\n\s*\n+|\n|g' "$j"; \
-	just --justfile "$j" --fmt --unstable; \
-	perl -pi -e 's| {4}|\t|g' "$j"
+	just --justfile {{ justfile }} --fmt --unstable
+	perl -pi -e 's| {4}|\t|g' {{ justfile }}
 
 [doc("List all recipes (`just --list` with additional settings)")]
 list: fmt
