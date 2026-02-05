@@ -10,8 +10,7 @@ alias fmt := utils::fmt
 
 [default]
 [doc('Build & run the project')]
-all:
-	make
+all: utils::fmt build run
 
 [doc('Build the project')]
 build: clean::pre && clean::post

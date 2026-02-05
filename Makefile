@@ -1,17 +1,16 @@
-.PHONY : default fmt reset run
-.SILENT :
-.ONESHELL :
+.PHONY: default fmt reset run
+.SILENT:
 SHELL := /usr/bin/bash
 TS := $(shell find src -name "*.ts")
 JS := $(patsubst src/%.ts,dist/%.js,$(TS))
-default : fmt $(JS) run
-fmt :
+default: fmt dist run
+fmt:
 	just fmt
-$(JS) : $(TS)
+dist: src
 	just build
-run :
-	source ~/.nvm/nvm.sh
-	nvm use 24 > /dev/null
+run:
+	source ~/.nvm/nvm.sh && \
+	nvm use 24 > /dev/null && \
 	just run
-reset :
+reset:
 	just reset
